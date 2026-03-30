@@ -455,6 +455,22 @@ body.theme-student .login-role-card:hover { transform: translate(-4px, -4px); bo
 .chat-input-area { padding: 20px 24px; border-top: var(--border-width) solid var(--border-color); display: flex; gap: 12px; background: var(--table-header-bg); }
 .chat-input-area input { flex: 1; padding: 12px 16px; font-size: 1rem; }
 
+/* ============ MODAL ============ */
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; animation: fadeIn 0.2s ease-out; }
+.modal-content { background: var(--bg-card); border: var(--border-width) solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); width: 100%; max-width: 600px; display: flex; flex-direction: column; animation: slideInDown 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.modal-header { padding: 20px 24px; border-bottom: var(--border-width) solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--table-header-bg); border-top-left-radius: var(--radius-lg); border-top-right-radius: var(--radius-lg); }
+.modal-header h3 { font-size: 1.2rem; font-weight: 800; color: var(--text-primary); margin: 0; }
+.modal-close { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); transition: var(--transition); }
+.modal-close:hover { color: var(--danger); background: var(--table-hover-bg); transform: scale(1.1); }
+.modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.modal-footer { padding: 20px 24px; border-top: var(--border-width) solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; background: var(--table-header-bg); border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg); }
+
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+
 /* ============ UPLOAD ZONE ============ */
 .upload-zone { border: 4px dashed var(--border-color); border-radius: var(--radius-lg); padding: 64px 32px; text-align: center; cursor: pointer; background: var(--bg-card); transition: var(--transition); box-shadow: var(--shadow-md); }
 .upload-zone:hover { background: var(--table-hover-bg); transform: var(--hover-transform); box-shadow: var(--shadow-lg); }

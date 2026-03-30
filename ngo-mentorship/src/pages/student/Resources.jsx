@@ -1,34 +1,31 @@
-import { trainingContent } from '../../data/mockData';
-import { Video, FileText, File, ExternalLink } from 'lucide-react';
+import { commonVideos } from '../../data/videoData';
+import VideoPlayer from '../../components/VideoPlayer';
+import { BookOpen } from 'lucide-react';
 
 export default function StudentResources() {
-  const typeIcons = { video: Video, pdf: FileText, document: File };
-
   return (
     <div className="animate-in">
-      <h1 className="page-title">Learning Resources</h1>
-      <p className="page-subtitle">Materials shared by your mentor for self-study</p>
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '8px' }}>
+        <div style={{ padding: '8px', background: 'rgba(59,130,246,0.1)', color: 'var(--info)', borderRadius: 'var(--radius-md)' }}>
+          <BookOpen size={24} />
+        </div>
+        <div>
+          <h1 className="page-title" style={{ margin: 0 }}>Learning Resources</h1>
+          <p className="page-subtitle" style={{ margin: 0 }}>Materials shared for self-study. Video progress is tracked automatically.</p>
+        </div>
+      </div>
 
-      <div className="grid-2">
-        {trainingContent.map(tc => {
-          const Icon = typeIcons[tc.type] || File;
-          return (
-            <div key={tc.id} className="card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', cursor: 'pointer' }}>
-              <div style={{ width: '52px', height: '52px', borderRadius: 'var(--radius-md)', background: tc.type === 'video' ? 'rgba(239,68,68,0.12)' : 'rgba(59,130,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: tc.type === 'video' ? 'var(--danger)' : 'var(--info)', flexShrink: 0 }}>
-                <Icon size={24} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <h4 style={{ fontWeight: 600, marginBottom: '4px' }}>{tc.title}</h4>
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '8px' }}>{tc.description}</p>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <span className="badge badge-info">{tc.category}</span>
-                  <span className="badge badge-purple">{tc.type.toUpperCase()}</span>
-                </div>
-              </div>
-              <ExternalLink size={16} style={{ color: 'var(--text-muted)' }} />
-            </div>
-          );
-        })}
+      <div style={{ marginTop: '32px' }}>
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          Recommended Videos
+          <span className="badge badge-pending">{commonVideos.length} Modules</span>
+        </h3>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+          {commonVideos.map(video => (
+            <VideoPlayer key={video.id} video={video} isStudent={true} />
+          ))}
+        </div>
       </div>
     </div>
   );
