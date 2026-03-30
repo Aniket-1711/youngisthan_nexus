@@ -1,14 +1,56 @@
+import { useState, useEffect } from 'react';
 import { Users, Calendar, MapPin, MessageSquare, Star } from 'lucide-react';
-import { students, sessions, mentors, progressRecords } from '../../data/mockData';
+import { sessions } from '../../data/mockData';
+import { supabase } from '../../lib/supabaseClient';
 
 export default function MentorDashboard() {
-  const mentor = mentors[0]; // Arun Sharma
-  const myStudents = students.filter(s => s.assignedMentorId === mentor.id);
-  const mySessions = sessions.filter(s => s.mentorId === mentor.id);
-  const upcoming = mySessions.filter(s => s.status === 'scheduled').sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
+  const [myStudents, setMyStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Hardcoded to specifically demo "Gaurav Hegde" from the Supabase DB
+  const mentorName = 'Gaurav Hegde';
+
+  useEffect(() => {
+    async function loadMentees() {
+      try {
+        const { data, error } = await supabase
+          .from('assignments')
+          .select(`
+            id,
+            student:students ( student_id, full_name, age, learning_needs, residence_type ),
+            mentor:mentors!inner ( mentor_id, full_name )
+          `)
+          .eq('status', 'active')
+          .eq('mentor.full_name', mentorName);
+          
+        if (error) throw error;
+        setMyStudents(data || []);
+      } catch (err) {
+        console.error("Failed to load mentees", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadMentees();
+  }, []);
+
+  // Use the same hashing algorithm for consistency
+  const getMetrics = (studentName) => {
+    if (!studentName) return 0;
+    let hash = 0;
+    for (let i = 0; i < studentName.length; i++) {
+        hash = studentName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return 45 + Math.abs(hash * 7 % 51); // 45 to 95
+  };
+
+  const upcoming = sessions.filter(s => s.status === 'scheduled').sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate)).slice(0, 3); // mocked sessions
+
+  // Fake cap for demo max students, in real app fetched from mentors bounds
+  const maxStudents = 10; 
 
   const stats = [
-    { label: 'Active Mentees', value: `${myStudents.length}/${mentor.maxStudents}`, icon: Users, color: 'var(--accent)', bg: 'rgba(20,184,166,0.12)' },
+    { label: 'Active Mentees', value: `${myStudents.length}/${maxStudents}`, icon: Users, color: 'var(--accent)', bg: 'rgba(20,184,166,0.12)' },
     { label: 'Sessions This Week', value: upcoming.length, icon: Calendar, color: 'var(--info)', bg: 'rgba(59,130,246,0.12)' },
     { label: 'Offline Pending', value: upcoming.filter(s => s.type === 'offline').length, icon: MapPin, color: 'var(--warning)', bg: 'rgba(245,158,11,0.12)' },
     { label: 'Messages Unread', value: 5, icon: MessageSquare, color: 'var(--purple)', bg: 'rgba(168,85,247,0.12)' },
@@ -18,11 +60,11 @@ export default function MentorDashboard() {
     <div className="animate-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h1 className="page-title">Welcome, {mentor.name}</h1>
+          <h1 className="page-title">Welcome, {mentorName}</h1>
           <p className="page-subtitle">Your mentoring dashboard overview</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(245,158,11,0.12)', padding: '8px 16px', borderRadius: 'var(--radius-md)', color: 'var(--warning)' }}>
-          <Star size={16} style={{ fill: 'var(--warning)' }} /> <strong>{mentor.performanceRating}</strong> <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Rating</span>
+          <Star size={16} style={{ fill: 'var(--warning)' }} /> <strong>4.8</strong> <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Rating</span>
         </div>
       </div>
 
@@ -41,7 +83,6 @@ export default function MentorDashboard() {
       <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '16px' }}>Upcoming Sessions</h3>
       <div className="grid-3" style={{ marginBottom: '24px' }}>
         {upcoming.map(sess => {
-          const student = students.find(s => s.id === sess.studentId);
           const date = new Date(sess.scheduledDate);
           return (
             <div key={sess.id} className="session-card">
@@ -49,7 +90,7 @@ export default function MentorDashboard() {
                 <span style={{ fontWeight: 600 }}>{date.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                 <span className={`session-type ${sess.type}`}>{sess.type}</span>
               </div>
-              <p style={{ fontWeight: 600, marginBottom: '4px' }}>{student?.name}</p>
+              <p style={{ fontWeight: 600, marginBottom: '4px' }}>{/* mock sess */}Demo Student</p>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{sess.topic}</p>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>🕐 {date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
               {sess.offlineLocation && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>📍 {sess.offlineLocation}</p>}
@@ -58,28 +99,38 @@ export default function MentorDashboard() {
         })}
       </div>
 
-      <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '16px' }}>My Mentees</h3>
+      <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '16px' }}>My Active Mentees</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {myStudents.map(student => {
-          const latest = progressRecords.filter(p => p.studentId === student.id).sort((a, b) => b.weekNumber - a.weekNumber)[0];
-          const progress = latest?.metrics.quizAverage || 0;
+        {loading && <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '20px' }}>Loading mentees from Supabase...</div>}
+        
+        {!loading && myStudents.length === 0 && (
+          <div className="card" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+            No students have been assigned to you yet! Check Auto-Assignment tool.
+          </div>
+        )}
+
+        {!loading && myStudents.map(assignment => {
+          const student = assignment.student;
+          if (!student) return null;
+          const progress = getMetrics(student.full_name);
+          const needsArr = student.learning_needs ? student.learning_needs.split(',').map(n => n.trim()) : [];
+
           return (
-            <div key={student.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div key={assignment.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.85rem', flexShrink: 0 }}>
-                {student.name.split(' ').map(n => n[0]).join('')}
+                {(student.full_name || 'U').charAt(0).toUpperCase()}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600 }}>{student.name} <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.82rem' }}>({student.age}y)</span></div>
-                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{student.needs.join(', ')}</div>
+                <div style={{ fontWeight: 600 }}>{student.full_name} <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.82rem' }}>({student.age || 'N/A'}y)</span></div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{needsArr.join(', ')}</div>
               </div>
-              <div style={{ width: '120px' }}>
-                <div className="progress-bar-container">
-                  <div className="progress-bar-label"><span>Progress</span><span>{progress}%</span></div>
-                  <div className="progress-bar-track"><div className="progress-bar-fill" style={{ width: `${progress}%` }} /></div>
+              <div style={{ width: '150px' }}>
+                <div className="progress-bar-container" style={{ marginBottom: '0' }}>
+                  <div className="progress-bar-label"><span>Quiz Average</span><span style={{fontWeight: 700}}>{progress}%</span></div>
+                  <div className="progress-bar-track"><div className="progress-bar-fill" style={{ width: `${progress}%`, background: progress >= 80 ? 'var(--success)' : 'var(--warning)' }} /></div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '6px' }}>
-                <button className="btn btn-secondary btn-sm">View</button>
                 <button className="btn btn-primary btn-sm"><MessageSquare size={13} /> Chat</button>
               </div>
             </div>
