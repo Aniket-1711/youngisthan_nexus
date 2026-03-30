@@ -1,0 +1,865 @@
+﻿# PRD: NGO Mentorship Management Platform
+
+**Version:** 1.0  
+**Date:** 2026-03-30  
+**Tech Stack:** InsForge.dev (Backend + Database + Auth), React/Next.js (Frontend)
+
+---
+
+## 1. Executive Summary
+
+A web-based platform connecting NGOs, mentors, and students (ages 1–19) for structured mentorship programs. The system enables automatic mentor-student matching based on skills and needs, tracks progress through online/offline hybrid sessions, and provides comprehensive analytics for NGO administrators.
+
+---
+
+## 2. User Personas & Roles
+
+| Role | Permissions | Key Actions |
+|------|-------------|-------------|
+| **NGO Admin** | Full system access | Upload datasets, manage mentors, view analytics, assign students, monitor progress, remove underperforming mentors |
+| **Mentor** | Assigned students only | View mentees, conduct sessions, upload progress, access training materials, chat with students |
+| **Student** | View assigned mentor, access resources | View mentor details, access learning portal, submit assignments, chat with mentor |
+
+---
+
+## 3. Core Workflows
+
+### 3.1 NGO Admin Workflow
+
+```
+Login → Dashboard (Analytics Overview)
+├── Add Mentors (Manual entry with skills/details)
+├── Training Center (Upload videos/PDFs → Mentors complete → Flag as "Trained")
+├── Auto-Assignment Engine
+│   ├── Upload Student Excel
+│   ├── Upload Mentor Excel
+│   ├── System matches: Skills ↔ Needs + Gender Pref + Timing + Location
+│   ├── Assigned Students → Mentor Dashboard
+│   └── Unmatched → "Others Queue" (Manual assignment pool)
+├── Monitor Progress (View all mentor-student pairs, session logs, performance)
+└── Reports (Download PDF/Excel analytics)
+```
+
+### 3.2 Mentor Workflow
+
+```
+Login → Dashboard
+├── Training Module (Watch videos/PDFs → Mark complete → Become "Active")
+├── My Mentees (View assigned students, duration, progress history)
+├── Session Management
+│   ├── Weekdays: Online sessions (Video calls + Chat)
+│   ├── Weekends: Offline visits (Download resources → Visit school → Conduct class → Upload quiz results)
+│   └── Progress Update (Upload scores, attendance, notes)
+├── Learning Resources (Access training materials to share with students)
+└── Chat (1-on-1 with students + Group chat with all mentees)
+```
+
+### 3.3 Student Workflow
+
+```
+Login → Dashboard
+├── My Mentor (View details, contact, schedule)
+├── Learning Portal (Access videos/PDFs shared by mentor - if mobile/internet available)
+├── Assignments (View tasks, submit work)
+├── Progress (View own scores, attendance)
+└── Chat (Message mentor, participate in group discussions)
+```
+
+---
+
+## 4. Database Schema (InsForge.dev)
+
+### 4.1 Collections Structure
+
+```typescript
+// ==================== USERS ====================
+interface User {
+  id: string;
+  role: 'ngo_admin' | 'mentor' | 'student';
+  email: string;
+  passwordHash: string; // InsForge Auth
+  name: string;
+  phone: string;
+  createdAt: Date;
+  updatedAt: Date;
+  isActive: boolean;
+}
+
+// ==================== MENTORS ====================
+interface Mentor {
+  userId: string;
+  skills: string[];                        // e.g. ["Mathematics", "Career Guidance"]
+  fieldOfInterest: string;
+  details: string;
+  contactDetails: { phone: string; email: string; address: string };
+  isTrained: boolean;
+  maxStudents: number;
+  currentStudents: number;                 // Auto-updated
+  gender: 'male' | 'female' | 'other';
+  preferredTiming: 'weekday_online' | 'weekend_offline' | 'both';
+  location: {
+    city: string;
+    area: 'urban' | 'rural';
+    coordinates?: { lat: number; lng: number };
+  };
+  performanceRating: number;               // 1–5, auto-calculated
+  status: 'pending_training' | 'active' | 'warning' | 'suspended' | 'removed';
+  trainingCompletedAt?: Date;
+  createdAt: Date;
+}
+
+// ==================== STUDENTS ====================
+interface Student {
+  userId: string;
+  name: string;
+  age: number;
+  gender: 'male' | 'female' | 'other';
+  needs: string[];                         // e.g. ["Mathematics", "Career Guidance"]
+  preferredMentorGender?: 'male' | 'female' | 'no_preference';
+  disability?: string;
+  contactNumber: string;                   // Parent's number if minor
+  mobileAccessible: boolean;
+  preferredTime?: string;                  // e.g. "evening_6pm"
+  location: {
+    city: string;
+    schoolName: string;
+    area: 'urban' | 'rural';
+    coordinates?: { lat: number; lng: number };
+  };
+  internetAccess: boolean;
+  assignedMentorId?: string;               // null if in "Others" queue
+  assignmentStatus: 'unassigned' | 'assigned' | 'others_queue' | 'temp_group_activity';
+  tempActivityType?: 'cultural' | 'mental_health' | 'ethics_values';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ==================== ASSIGNMENTS ====================
+interface Assignment {
+  id: string;
+  mentorId: string;
+  studentId: string;
+  assignedAt: Date;
+  assignedBy: 'auto' | 'manual';
+  status: 'active' | 'completed' | 'terminated';
+  startDate: Date;
+  expectedEndDate: Date;
+  matchScore: number;
+  matchFactors: {
+    skillMatch: boolean;
+    genderPreferenceMet: boolean;
+    timingAligned: boolean;
+    locationCompatible: boolean;
+  };
+}
+
+// ==================== SESSIONS ====================
+interface Session {
+  id: string;
+  mentorId: string;
+  studentId: string;
+  type: 'online' | 'offline';
+  scheduledDate: Date;
+  completedAt?: Date;
+  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
+  topic: string;
+  notes?: string;
+  materialsUsed: string[];
+  quizScores?: { quizId: string; score: number; total: number };
+  attendance: 'present' | 'absent';
+  mentorFeedback?: string;
+  studentFeedback?: string;
+  offlineLocation?: string;
+  proofOfVisit?: string;                   // Image URL (optional for offline)
+  createdAt: Date;
+}
+
+// ==================== TRAINING CONTENT ====================
+interface TrainingContent {
+  id: string;
+  title: string;
+  type: 'video' | 'pdf' | 'document';
+  url: string;
+  category: string;                        // e.g. "Teaching Methods"
+  uploadBy: string;                        // NGO Admin ID
+  uploadAt: Date;
+  isActive: boolean;
+  targetAgeGroups: string[];               // e.g. ["1-8", "9-15"] or ["all"]
+  description: string;
+}
+
+// ==================== MENTOR TRAINING PROGRESS ====================
+interface MentorTrainingProgress {
+  mentorId: string;
+  contentId: string;
+  status: 'not_started' | 'in_progress' | 'completed';
+  completedAt?: Date;
+  timeSpent: number;                       // Minutes
+}
+
+// ==================== PROGRESS TRACKING ====================
+interface ProgressRecord {
+  id: string;
+  studentId: string;
+  mentorId: string;
+  assignmentId: string;
+  recordedAt: Date;
+  weekNumber: number;
+  metrics: {
+    attendanceRate: number;
+    assignmentCompletion: number;
+    quizAverage: number;
+    mentorRating: number;                  // 1–5 subjective improvement
+    skillImprovement: string;
+  };
+  status: 'on_track' | 'needs_attention' | 'excellent';
+  notes: string;
+}
+
+// ==================== CHAT MESSAGES ====================
+interface ChatMessage {
+  id: string;
+  senderId: string;
+  receiverId?: string;                     // null for group messages
+  groupId?: string;                        // mentorId for group chats
+  type: 'direct' | 'group';
+  message: string;
+  attachments?: string[];
+  timestamp: Date;
+  readBy: string[];
+}
+
+// ==================== OTHERS QUEUE ====================
+interface OthersQueue {
+  studentId: string;
+  addedAt: Date;
+  reason: 'no_skill_match' | 'mentor_capacity_full' | 'timing_mismatch' | 'manual_hold';
+  tempActivityType?: 'cultural' | 'mental_health' | 'ethics_values';
+  assignedToGroup?: string;
+  notes: string;
+  resolvedAt?: Date;
+  resolvedBy?: string;
+}
+
+// ==================== NOTIFICATIONS ====================
+interface Notification {
+  id: string;
+  userId: string;
+  type: 'assignment' | 'session_reminder' | 'progress_update' | 'warning' | 'system';
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: Date;
+  actionUrl?: string;
+  // Note: In-app only — no email/SMS integration yet
+}
+
+// ==================== GENERATED REPORTS ====================
+interface GeneratedReport {
+  id: string;
+  generatedBy: string;                     // NGO Admin ID
+  generatedAt: Date;
+  reportType: 'analytics' | 'mentor_performance' | 'student_progress' | 'comprehensive';
+  format: 'pdf' | 'excel';
+  filters: {
+    dateRange: { start: Date; end: Date };
+    city?: string;
+    school?: string;
+    mentorId?: string;
+  };
+  downloadUrl: string;
+  fileSize: number;
+  expiryDate: Date;                        // Auto-delete after 30 days
+}
+```
+
+---
+
+## 5. API Endpoints (InsForge.dev)
+
+### 5.1 Authentication (InsForge Built-in)
+
+```
+POST /auth/login
+POST /auth/logout
+POST /auth/refresh
+GET  /auth/me
+```
+
+### 5.2 NGO Admin APIs
+
+```
+// Dashboard & Analytics
+GET  /admin/dashboard/stats
+GET  /admin/analytics/geographic
+GET  /admin/analytics/mentor-student-ratio
+GET  /admin/analytics/performance
+POST /admin/reports/generate
+GET  /admin/reports/:id/download
+
+// Mentor Management
+POST   /admin/mentors
+GET    /admin/mentors
+GET    /admin/mentors/:id
+PUT    /admin/mentors/:id
+DELETE /admin/mentors/:id
+PUT    /admin/mentors/:id/status
+
+// Training Content
+POST   /admin/training-content
+GET    /admin/training-content
+DELETE /admin/training-content/:id
+
+// Assignments
+POST /admin/bulk-upload/students
+POST /admin/bulk-upload/mentors
+POST /admin/assignments/auto-assign
+GET  /admin/assignments/others-queue
+POST /admin/assignments/manual-assign
+PUT  /admin/assignments/:id/terminate
+
+// Monitoring
+GET /admin/sessions
+GET /admin/progress
+GET /admin/mentors/:id/performance
+```
+
+### 5.3 Mentor APIs
+
+```
+GET  /mentor/dashboard
+GET  /mentor/mentees
+GET  /mentor/mentees/:id
+
+// Training
+GET  /mentor/training-content
+POST /mentor/training-content/:id/complete
+
+// Sessions
+POST /mentor/sessions
+GET  /mentor/sessions
+PUT  /mentor/sessions/:id/complete
+POST /mentor/sessions/:id/upload-proof
+
+// Progress
+POST /mentor/progress
+GET  /mentor/progress/:studentId
+
+// Chat
+GET  /mentor/chat/:studentId
+GET  /mentor/chat/group/:groupId
+POST /mentor/chat/send
+```
+
+### 5.4 Student APIs
+
+```
+GET  /student/dashboard
+GET  /student/mentor
+GET  /student/learning-resources
+GET  /student/progress
+GET  /student/assignments
+
+// Chat
+GET  /student/chat/:mentorId
+POST /student/chat/send
+```
+
+---
+
+## 6. Auto-Assignment Algorithm
+
+### 6.1 Matching Logic (Priority Order)
+
+```javascript
+function calculateMatchScore(student, mentor) {
+  let score = 0;
+  let factors = {};
+
+  // Priority 1: Skills–Needs Match (50% weight)
+  const skillOverlap = student.needs.filter(need => mentor.skills.includes(need)).length;
+  if (skillOverlap > 0) {
+    score += 50 * (skillOverlap / student.needs.length);
+    factors.skillMatch = true;
+  } else {
+    factors.skillMatch = false;
+  }
+
+  // Priority 2: Gender Preference (20% weight)
+  if (!student.preferredMentorGender ||
+      student.preferredMentorGender === 'no_preference' ||
+      student.preferredMentorGender === mentor.gender) {
+    score += 20;
+    factors.genderPreferenceMet = true;
+  } else {
+    factors.genderPreferenceMet = false;
+  }
+
+  // Priority 3: Timing Alignment (15% weight)
+  const studentTiming = student.mobileAccessible ? 'weekday_online' : 'weekend_offline';
+  if (mentor.preferredTiming === 'both' || mentor.preferredTiming === studentTiming) {
+    score += 15;
+    factors.timingAligned = true;
+  } else {
+    factors.timingAligned = false;
+  }
+
+  // Priority 4: Location Compatibility (15% weight)
+  if (student.location.city === mentor.location.city) {
+    score += 15;
+    factors.locationCompatible = true;
+  } else if (student.location.area === mentor.location.area) {
+    score += 10; // Same urban/rural type
+    factors.locationCompatible = 'partial';
+  } else {
+    factors.locationCompatible = false;
+  }
+
+  return { score, factors };
+}
+
+function autoAssignStudents(students, mentors) {
+  const assignments = [];
+  const othersQueue = [];
+
+  const availableMentors = mentors.filter(m =>
+    m.isTrained && m.status === 'active' && m.currentStudents < m.maxStudents
+  );
+
+  for (const student of students) {
+    if (student.assignedMentorId) continue;
+
+    let bestMatch = null;
+    let bestScore = 0;
+
+    for (const mentor of availableMentors) {
+      const { score, factors } = calculateMatchScore(student, mentor);
+      if (score > bestScore && score >= 60) { // Minimum 60% match threshold
+        bestScore = score;
+        bestMatch = { mentor, score, factors };
+      }
+    }
+
+    if (bestMatch) {
+      assignments.push({
+        studentId: student.id,
+        mentorId: bestMatch.mentor.id,
+        score: bestMatch.score,
+        factors: bestMatch.factors,
+        type: 'auto'
+      });
+      bestMatch.mentor.currentStudents++;
+    } else {
+      othersQueue.push({
+        studentId: student.id,
+        reason: determineReason(student, availableMentors),
+        tempActivityType: assignTempActivity(student.needs)
+      });
+    }
+  }
+
+  return { assignments, othersQueue };
+}
+
+function assignTempActivity(needs) {
+  if (needs.includes('Mental Health')) return 'mental_health';
+  if (needs.includes('Cultural')) return 'cultural';
+  return 'ethics_values';
+}
+```
+
+---
+
+## 7. UI/UX Structure
+
+### 7.1 NGO Admin Dashboard Layout
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ SIDEBAR                  │ MAIN CONTENT AREA               │
+│ ─────────────────────── │ ──────────────────────────────── │
+│ 📊 Dashboard (Overview)  │                                  │
+│ ─────────────────────── │ [ANALYTICS CARDS]                │
+│ 👥 Mentor Management     │ • Total Students: 150            │
+│   ├── Add Mentor         │ • Active Mentors: 25             │
+│   ├── View All Mentors   │ • Mentor-Student Ratio: 1:6      │
+│   └── Training Status    │ • Cities Reached: 8              │
+│ ─────────────────────── │ • Schools Reached: 12            │
+│ 📁 Bulk Upload           │                                  │
+│   ├── Upload Students    │ [GEOGRAPHIC MAP]                 │
+│   └── Upload Mentors     │ (Visual map with pins)           │
+│ ─────────────────────── │                                  │
+│ ⚡ Auto-Assignment       │ [RECENT ACTIVITY]                │
+│   ├── Run Assignment     │ • 5 new mentors added            │
+│   └── Others Queue (12)  │ • 23 students assigned today     │
+│ ─────────────────────── │ • 3 mentors under review         │
+│ 📈 Reports               │                                  │
+│   ├── Generate Report    │                                  │
+│   └── Download History   │                                  │
+│ ─────────────────────── │                                  │
+│ 💬 Chat Monitor (View)   │                                  │
+│ ⚙️ Settings              │                                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 7.2 Mentor Dashboard Layout
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ HEADER: Welcome, [Mentor Name] | My Rating: ⭐4.5 | 🔔 3   │
+├─────────────────────────────────────────────────────────────┤
+│ TABS: [Dashboard] [My Mentees] [Training] [Schedule] [Chat] │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ [QUICK STATS]                                               │
+│ • Active Mentees: 5/10       • This Week Sessions: 3        │
+│ • Offline Visits Pending: 2  • Messages Unread: 5           │
+│                                                             │
+│ [UPCOMING SESSIONS]                                         │
+│ ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
+│ │ Mon, Online │  │ Wed, Online │  │ Sat, Offline│          │
+│ │ Ravi - Math │  │ Priya - Sci │  │ Govt School │          │
+│ │ 6:00 PM     │  │ 5:30 PM     │  │ 10:00 AM    │          │
+│ └─────────────┘  └─────────────┘  └─────────────┘          │
+│                                                             │
+│ [MY MENTEES LIST]                                           │
+│ ┌─────────────────────────────────────────────────────┐     │
+│ │ 👤 Ravi Kumar (Age 14) — Mathematics                │     │
+│ │ Progress: ████████░░ 80% | Last Session: 2 days ago │     │
+│ │ [View Details] [Chat] [Schedule Session]             │     │
+│ ├─────────────────────────────────────────────────────┤     │
+│ │ 👤 Priya Singh (Age 16) — Career Guidance           │     │
+│ │ Progress: ██████░░░░ 60% | Last Session: 5 days ago │     │
+│ │ [View Details] [Chat] [Schedule Session]             │     │
+│ └─────────────────────────────────────────────────────┘     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 7.3 Student Dashboard Layout
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ HEADER: Hello, [Student Name]! | 🔔 2 notifications        │
+├─────────────────────────────────────────────────────────────┤
+│ [MY MENTOR CARD]                                            │
+│ ┌─────────────────────────────────────────────────────┐     │
+│ │ 👨‍🏫 Mr. Arun Sharma (Mathematics Expert)            │     │
+│ │ ⭐ Rating: 4.8 | 📞 Contact: 98765XXXXX             │     │
+│ │ [Chat Now] [View Schedule]                           │     │
+│ └─────────────────────────────────────────────────────┘     │
+│                                                             │
+│ [MY PROGRESS]                                               │
+│ Mathematics: ████████████ 85%                               │
+│ Attendance:  ██████████░░ 90%                               │
+│ Next Quiz: Friday, 4:00 PM                                  │
+│                                                             │
+│ [LEARNING RESOURCES] (If mobile/internet available)         │
+│ 📹 Video: Algebra Basics                                    │
+│ 📄 PDF: Practice Problems Set 3                             │
+│ 📝 Quiz: Previous Week Results (8/10)                       │
+│                                                             │
+│ [UPCOMING SESSIONS]                                         │
+│ • Tuesday 5:00 PM  — Online (Mathematics)                   │
+│ • Saturday 11:00 AM — Offline at School                     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 8. Key Feature Specifications
+
+### 8.1 Geographic Analytics (Map Visualization)
+
+- **Library:** Leaflet.js or Mapbox
+- **Data Points:**
+  - Heatmap of student density by city
+  - Pins for schools reached
+  - Color-coded mentor coverage areas
+- **Interactions:** Click pin → show school details, student count, assigned mentor
+- **Export:** PNG image of current map view + Excel raw data
+
+### 8.2 Excel Upload Format
+
+**Students Excel Columns:**
+
+| Column Name | Type | Required | Description |
+|---|---|---|---|
+| name | String | Yes | Student full name |
+| age | Number | Yes | 1–19 |
+| gender | Enum | Yes | male / female / other |
+| needs | String | Yes | Comma-separated (e.g., "Math, Career Guidance") |
+| preferred_mentor_gender | Enum | No | male / female / no_preference |
+| disability | String | No | "none" or specific description |
+| contact_number | String | Yes | Parent/student phone |
+| mobile_accessible | Boolean | Yes | true / false |
+| preferred_time | String | No | e.g., "evening_6pm" |
+| city | String | Yes | — |
+| school_name | String | Yes | — |
+| area_type | Enum | Yes | urban / rural |
+| internet_access | Boolean | Yes | true / false |
+
+**Mentors Excel Columns:**
+
+| Column Name | Type | Required | Description |
+|---|---|---|---|
+| name | String | Yes | — |
+| email | String | Yes | Unique |
+| phone | String | Yes | — |
+| skills | String | Yes | Comma-separated |
+| field_of_interest | String | Yes | — |
+| gender | Enum | Yes | male / female / other |
+| preferred_timing | Enum | Yes | weekday_online / weekend_offline / both |
+| city | String | Yes | — |
+| area_type | Enum | Yes | urban / rural |
+| max_students | Number | Yes | Default: 10 |
+
+### 8.3 Chat System (Real-time)
+
+- **Technology:** WebSockets (Socket.io) or InsForge real-time subscriptions
+- **Features:**
+  - 1-on-1 messaging: Student ↔ Mentor
+  - Group chat: Mentor + all assigned students (auto-created on assignment)
+  - Message persistence (full chat history)
+  - Read receipts
+  - File sharing (images, PDFs)
+- **Privacy:** NGO admin can view chat logs for monitoring but cannot participate
+
+### 8.4 Notification System (In-App)
+
+- **Types:**
+  - Assignment notification (mentor assigned to student)
+  - Session reminders (24h and 1h before)
+  - Progress updates (mentor submits weekly report)
+  - System alerts (mentor under review, training incomplete)
+- **Delivery:** In-app only (bell icon with dropdown)
+- **Future:** Email/SMS integration placeholder
+
+---
+
+## 9. Mentor Lifecycle & Performance Management
+
+### 9.1 Status Flow
+
+```
+Pending Training → Active → [Warning] → [Suspended] → Removed
+                      ↓          ↓            ↓
+               Good Performance  Performance  Appeal
+               Review (3 months) Review (1 month) Window
+```
+
+### 9.2 Performance Metrics (Auto-calculated)
+
+- **Session Completion Rate:** % of scheduled sessions completed
+- **Student Progress:** Average improvement in student metrics
+- **Attendance Punctuality:** On-time session starts
+- **Response Time:** Speed of responding to student messages
+- **Student Feedback:** Ratings from students (age-appropriate)
+
+### 9.3 Removal Triggers
+
+| Trigger | Action | Timeline |
+|---|---|---|
+| Session completion < 60% | Warning | Immediate |
+| No activity for 14 days | Warning | After 14 days |
+| 2+ student complaints | Suspension | Immediate |
+| Performance rating < 2.5 for 4 weeks | Suspension | After review |
+| Failed to improve after warning | Removal | 30 days post-warning |
+
+### 9.4 Appeal Process
+
+- Suspended mentors can submit an appeal with justification
+- NGO admin reviews appeal alongside performance data
+- Decision: Reinstate (probation) or confirm removal
+
+---
+
+## 10. Offline Weekend Workflow
+
+```
+Friday Evening (Mentor)
+  ↓
+Download resources from Learning Portal
+  ↓
+Prepare printed materials for students without mobile access
+  ↓
+Saturday Morning
+  ↓
+Visit designated school / community center
+  ↓
+Conduct offline classes (2–3 hours)
+  ↓
+Administer paper quiz / exercise
+  ↓
+Grade on-site or photograph for later grading
+  ↓
+Sunday Evening
+  ↓
+Upload quiz results to portal
+  ↓
+Update student progress records
+  ↓
+Mark session as "completed" with notes
+```
+
+---
+
+## 11. Security & Compliance
+
+### 11.1 Data Protection
+
+- **Encryption:** All data encrypted at rest and in transit (InsForge default)
+- **Access Control:** Strict Role-Based Access Control (RBAC) enforcement
+- **PII Handling:** Minimal collection; no sensitive personal data stored for minors
+- **Audit Logs:** All admin actions logged (mentor removals, assignments, data exports)
+
+### 11.2 Content Safety
+
+- Training materials reviewed by NGO before upload
+- Chat monitoring with flagging system for inappropriate content
+- Report abuse button available to students and mentors
+
+---
+
+## 12. Development Phases (MVP → Production)
+
+### Phase 1 — MVP (Weeks 1–4)
+
+- [ ] InsForge project setup + Auth
+- [ ] NGO Admin: Add mentors manually, upload Excel (students/mentors)
+- [ ] Auto-assignment algorithm (basic matching)
+- [ ] Mentor dashboard: View mentees, basic progress update
+- [ ] Student dashboard: View mentor, basic profile
+- [ ] Simple analytics (numbers only, no map)
+
+### Phase 2 — Core Features (Weeks 5–8)
+
+- [ ] Training module (video/PDF upload + completion tracking)
+- [ ] Session scheduling (online/offline)
+- [ ] Progress tracking with quiz uploads
+- [ ] "Others Queue" management
+- [ ] Geographic map visualization
+- [ ] Report generation (PDF/Excel)
+
+### Phase 3 — Communication & Polish (Weeks 9–12)
+
+- [ ] Real-time chat (1-on-1 + Group)
+- [ ] Notification system (in-app)
+- [ ] Mentor performance monitoring & removal workflow
+- [ ] Mobile responsiveness optimization
+- [ ] UI/UX refinements
+
+### Phase 4 — Scale & Enhance (Post-Launch)
+
+- [ ] Multi-language support (regional languages)
+- [ ] Email/SMS integration (real notifications)
+- [ ] Advanced analytics (predictive modeling)
+- [ ] Mobile app (React Native / Flutter)
+
+---
+
+## 13. Technical Implementation Notes (InsForge.dev)
+
+### 13.1 Database Design
+
+- Use **InsForge Collections** for all entities defined in the schema
+- **Indexes:**
+  - `students.assignedMentorId` — for quick mentor lookup
+  - `students.needs` — array index for matching
+  - `mentors.skills` — array index for matching
+  - `sessions.mentorId + scheduledDate` — for calendar views
+
+### 13.2 File Storage
+
+Use **InsForge Storage** for:
+- Training videos and PDFs
+- Excel upload processing
+- Offline visit proof photos
+- Generated reports
+
+### 13.3 Real-time Features
+
+Use **InsForge Realtime** or **WebSocket integration** for:
+- Chat messages
+- Live notifications
+- Dashboard stats updates
+
+### 13.4 Serverless Functions
+
+| Function | Purpose |
+|---|---|
+| `processExcelUpload` | Parse and validate Excel data |
+| `generateReport` | Create PDF/Excel exports |
+| `autoAssign` | Run matching algorithm (manual trigger or scheduled) |
+
+### 13.5 Authentication
+
+Leverage **InsForge Auth** with custom claims:
+- `role: 'ngo_admin' | 'mentor' | 'student'`
+- `permissions` array for fine-grained access control
+
+---
+
+## 14. Acceptance Criteria
+
+### 14.1 NGO Admin
+
+- [ ] Can upload 100+ student/mentor records via Excel without errors
+- [ ] Auto-assignment matches >80% of students with a score ≥ 60%
+- [ ] Can manually assign students from the "Others Queue"
+- [ ] Can view real-time mentor-student ratio and geographic reach
+- [ ] Can download analytics reports in PDF and Excel formats
+
+### 14.2 Mentor
+
+- [ ] Can complete training module and see "Active" status
+- [ ] Can view assigned students with contact details
+- [ ] Can schedule online (weekday) and offline (weekend) sessions
+- [ ] Can upload quiz results and progress updates
+- [ ] Can chat with students (1-on-1 and group)
+
+### 14.3 Student
+
+- [ ] Can view assigned mentor details and schedule
+- [ ] Can access learning resources (if internet available)
+- [ ] Can see personal progress dashboard
+- [ ] Can chat with mentor
+
+### 14.4 System
+
+- [ ] Auto-assignment runs in < 30 seconds for 500 records
+- [ ] Chat messages deliver in < 2 seconds
+- [ ] Reports generate in < 10 seconds
+- [ ] 99.9% uptime during operational hours
+
+---
+
+## 15. Appendix
+
+### A. Sample Match Scenarios
+
+**Scenario 1 — Perfect Match**
+
+- **Student:** Needs ["Mathematics"], Gender Pref: Female, Mobile: Yes, City: Delhi
+- **Mentor:** Skills ["Mathematics", "Science"], Gender: Female, Timing: Both, City: Delhi
+- **Score:** 50 + 20 + 15 + 15 = **100%** → Auto-assigned
+
+**Scenario 2 — Partial Match → Others Queue**
+
+- **Student:** Needs ["Mental Health"], Gender Pref: Male, Mobile: No, City: Mumbai
+- **Available Mentors:** No "Mental Health" skill in Mumbai
+- **Result:** Added to Others Queue with `tempActivityType: "mental_health"`
+
+### B. Glossary
+
+| Term | Definition |
+|---|---|
+| **Others Queue** | Temporary holding area for unmatched students |
+| **Mentee** | Student assigned to a mentor |
+| **Offline Visit** | Weekend physical session at a student's school/location |
+| **Auto-Assignment** | Algorithmic matching of mentors to students |
+
+---
+
+*END OF PRD*
+
+
