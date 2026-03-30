@@ -1,12 +1,77 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Download, FileText, FileSpreadsheet, Calendar } from 'lucide-react';
 import { generatedReports } from '../../data/mockData';
+import { supabase } from '../../lib/supabaseClient';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function Reports() {
   const [reportType, setReportType] = useState('comprehensive');
+  const [downloading, setDownloading] = useState(false);
 
   const formatSize = (bytes) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   const typeLabels = { comprehensive: 'Comprehensive', mentor_performance: 'Mentor Performance', student_progress: 'Student Progress', analytics: 'Analytics' };
+
+  // Re-used exact PDF implementation from AutoAssignment
+  const handleDownloadPDF = async () => {
+    setDownloading(true);
+    try {
+      // 1. Fetch live assignments
+      const { data: assignmentsData, error } = await supabase
+        .from('assignments')
+        .select(`
+          id,
+          status,
+          match_score,
+          assigned_by,
+          other_allocation,
+          student:students ( student_id, full_name, age, learning_needs, residence_type ),
+          mentor:mentors ( mentor_id, full_name, subjects_can_teach )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      const assignments = assignmentsData || [];
+
+      // 2. Generate exactly the same PDF
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text('Mentor-Student Assignments Report', 14, 20);
+      doc.setFontSize(10);
+      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
+
+      const tableColumn = ["Student Name", "Age", "Needs", "Mentor Name", "Match Score", "Status"];
+      const tableRows = [];
+
+      assignments.forEach(a => {
+        const studentData = [
+          a.student?.full_name || 'N/A',
+          a.student?.age || 'N/A',
+          a.student?.learning_needs || 'N/A',
+          a.mentor?.full_name || 'N/A',
+          `${a.match_score || 0}%`,
+          a.status
+        ];
+        tableRows.push(studentData);
+      });
+
+      autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: 35,
+        theme: 'grid',
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [59, 130, 246] }
+      });
+
+      doc.save('mentor_assignments_report.pdf');
+    } catch (err) {
+      console.error("Error generating PDF:", err);
+      alert('Failed to generate PDF: ' + err.message);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="animate-in">
@@ -31,7 +96,9 @@ export default function Reports() {
             <select><option value="pdf">PDF</option><option value="excel">Excel</option></select>
           </div>
         </div>
-        <button className="btn btn-primary"><Download size={16} /> Generate Report</button>
+        <button className="btn btn-primary" onClick={handleDownloadPDF} disabled={downloading}>
+          <Download size={16} /> {downloading ? 'Compiling PDF...' : 'Generate Report'}
+        </button>
       </div>
 
       <div className="data-table-wrapper">
@@ -52,7 +119,11 @@ export default function Reports() {
                 </td>
                 <td>{formatSize(r.fileSize)}</td>
                 <td style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{r.generatedAt}</td>
-                <td><button className="btn btn-secondary btn-sm"><Download size={14} /> Download</button></td>
+                <td>
+                  <button className="btn btn-secondary btn-sm" onClick={handleDownloadPDF} disabled={downloading}>
+                    <Download size={14} /> Download
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

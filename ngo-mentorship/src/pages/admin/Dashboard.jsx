@@ -1,19 +1,73 @@
+import { useState, useEffect } from 'react';
 import { Users, GraduationCap, MapPin, School, Calendar, TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import { dashboardStats, enrollmentTrend, sessionCompletionData, cityDistribution, recentActivity } from '../../data/mockData';
-
-const stats = [
-  { label: 'Total Students', value: dashboardStats.totalStudents, icon: GraduationCap, color: 'var(--info)', bg: 'rgba(59,130,246,0.12)', trend: '+18', up: true },
-  { label: 'Active Mentors', value: dashboardStats.activeMentors, icon: Users, color: 'var(--accent)', bg: 'rgba(20,184,166,0.12)', trend: '+3', up: true },
-  { label: 'Mentor:Student', value: dashboardStats.mentorStudentRatio, icon: Activity, color: 'var(--purple)', bg: 'rgba(168,85,247,0.12)', trend: 'Optimal', up: true },
-  { label: 'Cities Reached', value: dashboardStats.citiesReached, icon: MapPin, color: 'var(--warning)', bg: 'rgba(245,158,11,0.12)', trend: '+2', up: true },
-  { label: 'Schools Reached', value: dashboardStats.schoolsReached, icon: School, color: 'var(--success)', bg: 'rgba(34,197,94,0.12)', trend: '+4', up: true },
-];
+import { supabase } from '../../lib/supabaseClient';
 
 const chartTooltipStyle = { backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '0.82rem' };
 
 export default function AdminDashboard() {
+  const [liveStats, setLiveStats] = useState({
+    totalStudents: dashboardStats.totalStudents,
+    activeMentors: dashboardStats.activeMentors,
+    mentorStudentRatio: dashboardStats.mentorStudentRatio,
+    citiesReached: dashboardStats.citiesReached,
+    schoolsReached: dashboardStats.schoolsReached,
+  });
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const { count: studentCount } = await supabase.from('students').select('*', { count: 'exact', head: true });
+        const { count: mentorCount } = await supabase.from('mentors').select('*', { count: 'exact', head: true });
+        
+        // Count unique cities
+        const { data: studentsData } = await supabase.from('students').select('residence_type, school_name');
+        
+        let uniqueCities = new Set();
+        let uniqueSchools = new Set();
+        
+        if (studentsData) {
+          studentsData.forEach(s => {
+             if (s.residence_type) uniqueCities.add(s.residence_type);
+             if (s.school_name) uniqueSchools.add(s.school_name);
+          });
+        }
+
+        const tStudents = studentCount || 0;
+        const tMentors = mentorCount || 0;
+        let ratio = 'N/A';
+        if (tMentors > 0 && tStudents > 0) {
+           ratio = `1:${Math.round(tStudents/tMentors)}`;
+        } else if (tMentors > 0 && tStudents === 0) {
+           ratio = `1:0`;
+        } else if (tMentors === 0 && tStudents > 0) {
+           ratio = `0:${tStudents}`;
+        }
+
+        setLiveStats({
+          totalStudents: tStudents,
+          activeMentors: tMentors,
+          mentorStudentRatio: ratio,
+          citiesReached: uniqueCities.size,
+          schoolsReached: uniqueSchools.size,
+        });
+      } catch (err) {
+        console.error("Error fetching stats:", err);
+      }
+    }
+    loadStats();
+  }, []);
+
+  const stats = [
+    { label: 'Total Students', value: liveStats.totalStudents, icon: GraduationCap, color: 'var(--info)', bg: 'rgba(59,130,246,0.12)', trend: 'Live Data', up: true },
+    { label: 'Active Mentors', value: liveStats.activeMentors, icon: Users, color: 'var(--accent)', bg: 'rgba(20,184,166,0.12)', trend: 'Live Data', up: true },
+    { label: 'Mentor:Student', value: liveStats.mentorStudentRatio, icon: Activity, color: 'var(--purple)', bg: 'rgba(168,85,247,0.12)', trend: 'Optimal', up: true },
+    { label: 'Cities Reached', value: liveStats.citiesReached, icon: MapPin, color: 'var(--warning)', bg: 'rgba(245,158,11,0.12)', trend: 'Live Data', up: true },
+    { label: 'Schools Reached', value: liveStats.schoolsReached, icon: School, color: 'var(--success)', bg: 'rgba(34,197,94,0.12)', trend: 'Live Data', up: true },
+  ];
+
   return (
     <div className="animate-in">
       <h1 className="page-title">Dashboard</h1>
@@ -27,7 +81,7 @@ export default function AdminDashboard() {
             </div>
             <div className="stats-info">
               <div className="stats-label">{s.label}</div>
-              <div className="stats-value">{s.value}</div>
+              <div className="stats-value" style={{ transition: 'all 0.3s' }}>{s.value}</div>
               <div className={`stats-trend ${s.up ? 'up' : 'down'}`}>
                 {s.up ? <TrendingUp size={13} /> : <TrendingDown size={13} />} {s.trend}
               </div>
@@ -78,6 +132,7 @@ export default function AdminDashboard() {
             <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Geographic Distribution</h3>
           </div>
           <div style={{ height: '320px' }}>
+             {/* Map renders static demo pins here */}
             <MapContainer center={[20.5937, 78.9629]} zoom={5} style={{ height: '100%', width: '100%', background: 'var(--bg-secondary)' }} scrollWheelZoom={false}>
               <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution='&copy; OpenStreetMap' />
               {cityDistribution.map(city => (
