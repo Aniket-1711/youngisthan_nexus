@@ -22,8 +22,8 @@ export default function Login() {
       <div className="login-bg" />
       <div className="login-container animate-in">
         <div className="login-logo">
-          <div className="login-logo-icon">MB</div>
-          <span className="login-logo-text">MentorBridge</span>
+          <div className="login-logo-icon">YN</div>
+          <span className="login-logo-text">Youngisthan Nexus</span>
         </div>
         <p className="login-subtitle">NGO Mentorship Management Platform — Select your role to continue</p>
         <div className="login-roles">

@@ -2,7 +2,7 @@
 
 export const users = {
   admin: { id: 'u1', name: 'Dr. Kavitha Nair', email: 'kavitha@ngo.org', role: 'ngo_admin', phone: '9876543210', avatar: 'KN' },
-  mentor: { id: 'u2', name: 'Arun Sharma', email: 'arun@mentor.org', role: 'mentor', phone: '9876543211', avatar: 'AS' },
+  mentor: { id: 'u2', name: 'Gaurav Hegde', email: 'gaurav@mentor.org', role: 'mentor', phone: '9876543211', avatar: 'GH' },
   student: { id: 'u3', name: 'Ravi Kumar', email: 'ravi@student.org', role: 'student', phone: '9876543212', avatar: 'RK' },
 };
 

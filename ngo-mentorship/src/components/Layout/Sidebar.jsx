@@ -79,8 +79,8 @@ export default function Sidebar({ isOpen, onClose }) {
       }} />}
       <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">MB</div>
-          <span className="sidebar-logo-text">MentorBridge</span>
+          <div className="sidebar-logo-icon">YN</div>
+          <span className="sidebar-logo-text">Youngisthan Nexus</span>
         </div>
 
         <nav className="sidebar-nav">
