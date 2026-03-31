@@ -84,18 +84,18 @@ INSTRUCTIONS:
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
     // Construct the payload
-    // Gemini 1.5 allows system instructions directly in the config, but we can also prepend it to support older versions if needed, or use the `systemInstruction` field natively.
     const chatModel = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
-      systemInstruction: systemPrompt 
+      model: "gemini-1.5-flash"
     });
 
-    const result = await chatModel.generateContent(userMessage);
+    const fullPayload = `SYSTEM INSTRUCTIONS: ${systemPrompt}\n\nUSER QUESTION: ${userMessage}`;
+
+    const result = await chatModel.generateContent(fullPayload);
     const response = await result.response;
     return response.text();
     
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return "I'm sorry, I'm having trouble connecting to my brain right now. Please try again later!";
+    return `I'm sorry, I'm having trouble connecting to my brain right now. Error Details: ${error.message || error}`;
   }
 }
