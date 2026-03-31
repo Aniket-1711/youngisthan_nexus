@@ -1,10 +1,23 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
-import { MessageSquare, Calendar, MapPin } from 'lucide-react';
+import { MessageSquare, Calendar, MapPin, X } from 'lucide-react';
 
 export default function MyMentees() {
   const [myStudents, setMyStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  // Schedule modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({
+    studentId: '',
+    studentName: '',
+    date: '',
+    time: '',
+    language: ''
+  });
+  const [scheduledSessions, setScheduledSessions] = useState([]);
 
   const mentorName = 'Gaurav Hegde';
 
@@ -44,6 +57,43 @@ export default function MyMentees() {
     const quiz = 45 + Math.abs(hash * 7 % 51); // 45 to 95
     
     return { attendance, quiz };
+  };
+
+  const openScheduleModal = (student) => {
+    setScheduleForm({
+      studentId: student.student_id,
+      studentName: student.full_name,
+      date: '',
+      time: '',
+      language: ''
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleScheduleSubmit = (e) => {
+    e.preventDefault();
+    if (!scheduleForm.date || !scheduleForm.time || !scheduleForm.language) {
+      alert('Please fill all fields');
+      return;
+    }
+
+    // Add to local scheduled sessions list
+    setScheduledSessions(prev => [...prev, {
+      id: `sched_${Date.now()}`,
+      studentId: scheduleForm.studentId,
+      studentName: scheduleForm.studentName,
+      date: scheduleForm.date,
+      time: scheduleForm.time,
+      language: scheduleForm.language
+    }]);
+
+    setIsModalOpen(false);
+    setScheduleForm({ studentId: '', studentName: '', date: '', time: '', language: '' });
+  };
+
+  const handleChatClick = (student) => {
+    // Navigate to the mentor chat section
+    navigate('/mentor/chat', { state: { selectedStudentId: student.student_id } });
   };
 
   if (loading) {
@@ -87,8 +137,8 @@ export default function MyMentees() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <button className="btn btn-secondary btn-sm"><Calendar size={13} /> Schedule</button>
-                      <button className="btn btn-primary btn-sm"><MessageSquare size={13} /> Chat</button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => openScheduleModal(student)}><Calendar size={13} /> Schedule</button>
+                      <button className="btn btn-primary btn-sm" onClick={() => handleChatClick(student)}><MessageSquare size={13} /> Chat</button>
                     </div>
                   </div>
                   
@@ -131,6 +181,86 @@ export default function MyMentees() {
           );
         })}
       </div>
+
+      {/* SCHEDULE SESSION MODAL */}
+      {isModalOpen && (
+        <div className="modal-overlay" style={{ display: 'flex', zIndex: 1000 }}>
+          <div className="modal-content" style={{ maxWidth: '500px', width: '100%', padding: '0', animation: 'scaleUp 0.3s ease-out' }}>
+            <div style={{ padding: '20px', borderBottom: '2px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--accent)', color: '#fff' }}>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>Schedule New Session</h2>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleScheduleSubmit} style={{ padding: '20px' }}>
+              {/* Pre-selected student display */}
+              <div className="form-group">
+                <label>Student</label>
+                <div style={{
+                  padding: '10px 14px',
+                  background: 'var(--table-header-bg)',
+                  border: 'var(--border-width) solid var(--border-color)',
+                  borderRadius: 'var(--radius-md)',
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  color: 'var(--text-primary)'
+                }}>
+                  {scheduleForm.studentName}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label>Date</label>
+                  <input
+                    type="date"
+                    value={scheduleForm.date}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Time</label>
+                  <input
+                    type="time"
+                    value={scheduleForm.time}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, time: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Language</label>
+                <select
+                  value={scheduleForm.language}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, language: e.target.value })}
+                  required
+                >
+                  <option value="">-- Select Language --</option>
+                  <option value="English">English</option>
+                  <option value="Hindi">Hindi</option>
+                  <option value="Kannada">Kannada</option>
+                  <option value="Tamil">Tamil</option>
+                  <option value="Telugu">Telugu</option>
+                  <option value="Marathi">Marathi</option>
+                  <option value="Bengali">Bengali</option>
+                  <option value="Gujarati">Gujarati</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Schedule Session</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Send, Paperclip, Users as UsersIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
 export default function MentorChat() {
+  const location = useLocation();
   const [myStudents, setMyStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -31,8 +33,13 @@ export default function MentorChat() {
         setMyStudents(studentsArr);
         
         if (studentsArr.length > 0) {
-          setSelectedStudent(studentsArr[0]);
-          // generate fake chat history for the first student
+          // If navigated from MyMentees with a specific student, select them
+          const targetId = location.state?.selectedStudentId;
+          const targetStudent = targetId
+            ? studentsArr.find(s => s.student_id === targetId)
+            : null;
+          setSelectedStudent(targetStudent || studentsArr[0]);
+          // generate fake chat history
           setMessages([
             { id: 'c1', senderId: 'student', message: 'Hello sir! I had a doubt regarding our last session.', timestamp: new Date(Date.now() - 3600000).toISOString() },
             { id: 'c2', senderId: 'mentor', message: 'Hi! Of course, what is your doubt?', timestamp: new Date(Date.now() - 3500000).toISOString() }

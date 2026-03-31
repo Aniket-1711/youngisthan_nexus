@@ -1,4 +1,5 @@
-import { Star, Phone, MessageSquare, Calendar, Video, FileText, BookOpen } from 'lucide-react';
+import { useState } from 'react';
+import { Star, Phone, MessageSquare, Calendar, Video, FileText, BookOpen, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { mentors, students, sessions, progressRecords, trainingContent } from '../../data/mockData';
 
@@ -10,6 +11,34 @@ export default function StudentDashboard() {
   const upcoming = mySessions.filter(s => s.status === 'scheduled');
   const records = progressRecords.filter(p => p.studentId === student.id).sort((a, b) => b.weekNumber - a.weekNumber);
   const latest = records[0];
+
+  // Schedule modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({
+    date: '',
+    time: '',
+    subject: ''
+  });
+  const [scheduledByStudent, setScheduledByStudent] = useState([]);
+
+  const handleScheduleSubmit = (e) => {
+    e.preventDefault();
+    if (!scheduleForm.date || !scheduleForm.time || !scheduleForm.subject) {
+      alert('Please fill all fields');
+      return;
+    }
+
+    setScheduledByStudent(prev => [...prev, {
+      id: `stud_sched_${Date.now()}`,
+      date: scheduleForm.date,
+      time: scheduleForm.time,
+      subject: scheduleForm.subject,
+      mentorName: mentor?.name
+    }]);
+
+    setIsModalOpen(false);
+    setScheduleForm({ date: '', time: '', subject: '' });
+  };
 
   return (
     <div className="animate-in">
@@ -30,13 +59,13 @@ export default function StudentDashboard() {
                 <Star size={14} style={{ color: 'var(--warning)', fill: 'var(--warning)' }} /> {mentor?.performanceRating}
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                <Phone size={14} /> {mentor?.phone.slice(0, 5)}XXXXX
+                <Phone size={14} /> {mentor?.phone}
               </span>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button className="btn btn-primary" onClick={() => navigate('/student/chat')}><MessageSquare size={16} /> Chat Now</button>
-            <button className="btn btn-secondary"><Calendar size={16} /> Schedule</button>
+            <button className="btn btn-secondary" onClick={() => setIsModalOpen(true)}><Calendar size={16} /> Schedule</button>
           </div>
         </div>
       </div>
@@ -101,6 +130,87 @@ export default function StudentDashboard() {
           ))}
         </div>
       </div>
+
+      {/* SCHEDULE SESSION MODAL */}
+      {isModalOpen && (
+        <div className="modal-overlay" style={{ display: 'flex', zIndex: 1000 }}>
+          <div className="modal-content" style={{ maxWidth: '500px', width: '100%', padding: '0', animation: 'scaleUp 0.3s ease-out' }}>
+            <div style={{ padding: '20px', borderBottom: '2px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--accent)', color: '#fff' }}>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>Schedule a Session</h2>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleScheduleSubmit} style={{ padding: '20px' }}>
+              {/* Mentor display */}
+              <div className="form-group">
+                <label>Mentor</label>
+                <div style={{
+                  padding: '10px 14px',
+                  background: 'var(--table-header-bg)',
+                  border: 'var(--border-width) solid var(--border-color)',
+                  borderRadius: 'var(--radius-md)',
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  color: 'var(--text-primary)'
+                }}>
+                  {mentor?.name}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label>Date</label>
+                  <input
+                    type="date"
+                    value={scheduleForm.date}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Time</label>
+                  <input
+                    type="time"
+                    value={scheduleForm.time}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, time: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Subject</label>
+                <select
+                  value={scheduleForm.subject}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, subject: e.target.value })}
+                  required
+                >
+                  <option value="">-- Select Subject --</option>
+                  <option value="Mathematics">Mathematics</option>
+                  <option value="Science">Science</option>
+                  <option value="English">English</option>
+                  <option value="Hindi">Hindi</option>
+                  <option value="Social Studies">Social Studies</option>
+                  <option value="Computer Science">Computer Science</option>
+                  <option value="Goal Setting">Goal Setting</option>
+                  <option value="Life Skills">Life Skills</option>
+                  <option value="Career Guidance">Career Guidance</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Schedule Session</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
