@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useAuth } from '../../context/AuthContext';
+import GlobalAIChatbot from '../GlobalAIChatbot';
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -35,6 +36,7 @@ export default function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+      <GlobalAIChatbot />
     </div>
   );
 }
