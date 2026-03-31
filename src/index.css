@@ -366,6 +366,7 @@ body.theme-student .sidebar-section-label { color: #000; font-weight: 800; lette
   display: flex; align-items: center; justify-content: space-between; padding: 0 32px;
   position: sticky; top: 0; z-index: 50;
 }
+.topbar-left { display: flex; align-items: center; gap: 16px; }
 .search-box { position: relative; width: 320px; }
 .search-box input { width: 100%; padding-left: 42px; background: var(--bg-input); }
 .search-box svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-primary); }

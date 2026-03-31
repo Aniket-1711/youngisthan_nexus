@@ -41,10 +41,12 @@ export default function Header({ onToggleSidebar, isLightMode, toggleLightMode }
     <header className="topbar">
       <div className="topbar-left">
         <button className="hamburger" onClick={onToggleSidebar}><Menu size={22} /></button>
-        <div className="search-box">
-          <Search size={16} />
-          <input type="text" placeholder="Search mentors, students, sessions..." />
-        </div>
+        {currentUser?.role !== 'ngo_admin' && (
+          <div className="search-box">
+            <Search size={16} />
+            <input type="text" placeholder="Search mentors, students, sessions..." />
+          </div>
+        )}
       </div>
       <div className="topbar-right" style={{ display: 'flex', alignItems: 'center' }}>
         {currentUser?.role === 'ngo_admin' && (
