@@ -422,6 +422,14 @@ body.theme-student .login-role-card:hover { transform: translate(-4px, -4px); bo
 
 .tabs { display: flex; gap: 12px; border-bottom: var(--border-width) solid var(--border-color); margin-bottom: 32px; padding-bottom: 12px; }
 .tab { padding: 12px 24px; font-weight: 700; color: var(--text-primary); background: var(--bg-card); border: var(--border-width) solid var(--border-color); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm); }
+.custom-fullscreen-video::-webkit-media-controls-fullscreen-button {
+  display: none !important;
+}
+
+video {
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
 .tab:hover { transform: var(--hover-transform); box-shadow: var(--shadow-md); background: var(--table-hover-bg); }
 .tab.active { background: var(--text-primary); color: var(--bg-card); }
 
