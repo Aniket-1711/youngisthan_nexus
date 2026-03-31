@@ -365,6 +365,48 @@ body.theme-student .sidebar-section-label { color: #000; font-weight: 800; lette
 }
 body.theme-student .notif-count { border-width: 2px; height: 24px; width: 24px; font-weight: 800; }
 
+.notif-dropdown {
+  position: absolute; top: calc(100% + 12px); right: 0; width: 360px;
+  background: var(--bg-card); border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  z-index: 200; overflow: hidden;
+  animation: slideInDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.notif-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; font-weight: 800; font-size: 0.95rem;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  background: var(--table-header-bg); color: var(--text-primary);
+  border-bottom: var(--border-width) solid var(--border-color);
+}
+.notif-close-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  background: transparent; border: var(--border-width) solid transparent;
+  color: var(--text-muted); cursor: pointer; transition: var(--transition);
+}
+.notif-close-btn:hover {
+  background: var(--table-hover-bg); color: var(--danger);
+  border-color: var(--border-color); transform: scale(1.1);
+}
+.notif-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 20px; border-bottom: 1px solid var(--border-color);
+  transition: var(--transition); cursor: default;
+}
+.notif-item:last-child { border-bottom: none; }
+.notif-item:hover { background: var(--table-hover-bg); }
+.notif-item.unread { background: color-mix(in srgb, var(--accent) 6%, var(--bg-card)); }
+.notif-icon {
+  width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  border: var(--border-width) solid var(--border-color); box-shadow: var(--shadow-sm);
+}
+.notif-text { flex: 1; min-width: 0; }
+.notif-text p { margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; }
+.notif-text p:first-child { color: var(--text-primary); font-weight: 700; }
+.notif-text span { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
+
 .page-content { flex: 1; padding: 32px; }
 
 /* ============ SPECIFIC COMPONENTS ============ */

@@ -1,14 +1,28 @@
-import { useState } from 'react';
-import { Search, Bell, Menu, Sun, Moon } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Search, Bell, Menu, Sun, Moon, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { notifications } from '../../data/mockData';
 
 export default function Header({ onToggleSidebar, isLightMode, toggleLightMode }) {
   const { currentUser } = useAuth();
   const [showNotif, setShowNotif] = useState(false);
+  const notifRef = useRef(null);
 
   const userNotifs = notifications.filter(n => n.userId === currentUser?.id);
   const unreadCount = userNotifs.filter(n => !n.isRead).length;
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setShowNotif(false);
+      }
+    };
+    if (showNotif) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showNotif]);
 
   const getNotifColor = (type) => {
     const colors = { assignment: 'var(--info)', session_reminder: 'var(--accent)', progress_update: 'var(--success)', warning: 'var(--warning)', system: 'var(--purple)' };
@@ -38,14 +52,28 @@ export default function Header({ onToggleSidebar, isLightMode, toggleLightMode }
             {isLightMode ? <Moon size={18} /> : <Sun size={18} />}
           </button>
         )}
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: 'relative' }} ref={notifRef}>
           <button className="notif-btn" onClick={() => setShowNotif(!showNotif)}>
             <Bell size={18} />
             {unreadCount > 0 && <span className="notif-count">{unreadCount}</span>}
           </button>
           {showNotif && (
             <div className="notif-dropdown">
-              <div className="notif-header">Notifications ({unreadCount} new)</div>
+              <div className="notif-header">
+                <span>Notifications ({unreadCount} new)</span>
+                <button
+                  className="notif-close-btn"
+                  onClick={() => setShowNotif(false)}
+                  aria-label="Close notifications"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              {userNotifs.length === 0 && (
+                <div className="notif-item" style={{ justifyContent: 'center', opacity: 0.6 }}>
+                  <p>No notifications</p>
+                </div>
+              )}
               {userNotifs.map(n => (
                 <div key={n.id} className={`notif-item ${!n.isRead ? 'unread' : ''}`}>
                   <div className="notif-icon" style={{ background: `${getNotifColor(n.type)}20`, color: getNotifColor(n.type) }}>
