@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isLightMode, setIsLightMode] = useState(false);
+  const [isLightMode, setIsLightMode] = useState(true);
   const { currentUser } = useAuth();
 
   useEffect(() => {
