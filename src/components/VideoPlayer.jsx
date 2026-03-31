@@ -1,15 +1,26 @@
 import { useRef, useState, useEffect } from 'react';
-import { Play } from 'lucide-react';
+import { Play, Maximize, Minimize } from 'lucide-react';
+import VideoAIChatbot from './VideoAIChatbot';
 
 export default function VideoPlayer({ video, isStudent }) {
+  const containerRef = useRef(null);
   const videoRef = useRef(null);
   const [maxTime, setMaxTime] = useState(0);
   const [hasStarted, setHasStarted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Sync state with native fullscreenchange to handle ESC key
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
     const currentTime = videoRef.current.currentTime;
-    // Buffer allowance context (seeking sometimes triggers minute skips)
     if (currentTime > maxTime) {
       setMaxTime(currentTime);
     }
@@ -17,9 +28,7 @@ export default function VideoPlayer({ video, isStudent }) {
 
   const handleSeeking = () => {
     if (!isStudent || !videoRef.current) return;
-    // Allow a small buffer (0.5s) to avoid micro-stutters when seeking back and forth near the edge
     if (videoRef.current.currentTime > maxTime + 0.5) {
-      // User is trying to skip ahead into unseen territory - force them back to max watched time
       videoRef.current.currentTime = maxTime;
     }
   };
@@ -27,7 +36,6 @@ export default function VideoPlayer({ video, isStudent }) {
   const handleRateChange = () => {
     if (!isStudent || !videoRef.current) return;
     if (videoRef.current.playbackRate > 1.0) {
-      // Force rate back to 1 if default controls are used maliciously
       videoRef.current.playbackRate = 1.0;
     }
   };
@@ -39,15 +47,28 @@ export default function VideoPlayer({ video, isStudent }) {
     }
   };
 
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen().catch(err => {
+        console.error("Error attempting to open fullscreen", err);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
   return (
     <div className="card" style={{ padding: 0, position: 'relative', overflow: 'hidden', borderRadius: 'var(--radius-lg)' }}>
-      {/* Container forcing a 16:9 aspect ratio roughly */}
-      <div style={{ position: 'relative', backgroundColor: '#000', aspectRatio: '16/9' }}>
+      {/* Container used for unifying video + chatbot inside Fullscreen */}
+      <div ref={containerRef} style={{ position: 'relative', backgroundColor: '#000', aspectRatio: '16/9', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        
+        {/* VIDEO */}
         <video
           ref={videoRef}
           src={video.src}
           controls={hasStarted}
           controlsList="nodownload" 
+          className="custom-fullscreen-video"
           style={{ width: '100%', height: '100%', objectFit: 'cover', filter: !hasStarted ? 'blur(12px) brightness(0.7)' : 'none', transition: 'filter 0.5s ease-out' }}
           onTimeUpdate={handleTimeUpdate}
           onSeeking={handleSeeking}
@@ -55,6 +76,7 @@ export default function VideoPlayer({ video, isStudent }) {
           preload="metadata"
         />
 
+        {/* THUMBNAIL OVERLAY */}
         {!hasStarted && (
           <div 
             onClick={handlePlayClick}
@@ -63,11 +85,10 @@ export default function VideoPlayer({ video, isStudent }) {
               display: 'flex', flexDirection: 'column',
               justifyContent: 'flex-end',
               cursor: 'pointer',
-              // Subtle gradient overlay for readability
-              background: 'linear-gradient(transparent 50%, rgba(0,0,0,0.8) 100%)'
+              background: 'linear-gradient(transparent 50%, rgba(0,0,0,0.8) 100%)',
+              zIndex: 10
             }}
           >
-            {/* Centered Play Button */}
             <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', 
                           width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(255,255,255,0.25)', 
                           backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.2s', cursor: 'pointer' }}
@@ -77,7 +98,6 @@ export default function VideoPlayer({ video, isStudent }) {
               <Play fill="#fff" color="#fff" size={32} style={{ marginLeft: '4px' }} />
             </div>
             
-            {/* Title Banner */}
             <div style={{ padding: '24px 20px', color: '#fff' }}>
               <span className="badge badge-info" style={{ marginBottom: '8px', background: 'rgba(59,130,246,0.3)', backdropFilter: 'blur(4px)', borderColor: 'rgba(255,255,255,0.2)', color: '#fff' }}>
                 {video.category}
@@ -93,9 +113,38 @@ export default function VideoPlayer({ video, isStudent }) {
             </div>
           </div>
         )}
+
+        {/* CUSTOM FULLSCREEN BUTTON OVERLAY */}
+        {hasStarted && (
+          <div style={{ position: 'absolute', bottom: isFullscreen ? '20px' : '4px', right: isFullscreen ? '20px' : '10px', zIndex: 50 }}>
+            <button 
+              onClick={toggleFullscreen}
+              style={{
+                background: 'rgba(0,0,0,0.5)',
+                border: 'none',
+                color: '#fff',
+                padding: '8px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backdropFilter: 'blur(4px)'
+              }}
+              title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+            >
+              {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+            </button>
+          </div>
+        )}
+
+        {/* AI CHATBOT INTEGRATION */}
+        {hasStarted && (
+          <VideoAIChatbot videoTitle={video.title} isStudent={isStudent} isFullscreen={isFullscreen} />
+        )}
       </div>
       
-      {/* Bottom Control Bar explicitly showing speed constraints */}
+      {/* Bottom Control Bar */}
       {hasStarted && isStudent && (
         <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-card)' }}>
            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{video.title}</span>
