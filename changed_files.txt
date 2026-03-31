@@ -1,0 +1,10 @@
+warning: in the working copy of 'src/components/Layout/DashboardLayout.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/VideoAIChatbot.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/VideoPlayer.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/geminiClient.js', LF will be replaced by CRLF the next time Git touches it
+src/components/Layout/DashboardLayout.jsx
+src/components/VideoAIChatbot.jsx
+src/components/VideoPlayer.jsx
+src/index.css
+src/lib/geminiClient.js
+src/pages/Login.jsx

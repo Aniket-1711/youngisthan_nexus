@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { Play, Maximize, Minimize } from 'lucide-react';
-import VideoAIChatbot from './VideoAIChatbot';
+import { useVideo } from '../context/VideoContext';
 
 export default function VideoPlayer({ video, isStudent }) {
   const containerRef = useRef(null);
@@ -9,14 +9,23 @@ export default function VideoPlayer({ video, isStudent }) {
   const [hasStarted, setHasStarted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  const { startWatching, setIsFullscreen: setGlobalFullscreen, setFullscreenContainerRef } = useVideo();
+
   // Sync state with native fullscreenchange to handle ESC key
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const fs = !!document.fullscreenElement;
+      setIsFullscreen(fs);
+      setGlobalFullscreen(fs);
+      if (fs) {
+        setFullscreenContainerRef(containerRef.current);
+      } else {
+        setFullscreenContainerRef(null);
+      }
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
+  }, [setGlobalFullscreen, setFullscreenContainerRef]);
 
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
@@ -44,6 +53,8 @@ export default function VideoPlayer({ video, isStudent }) {
     if (videoRef.current) {
       videoRef.current.play();
       setHasStarted(true);
+      // Broadcast to context that this video is now playing
+      startWatching(video, isStudent);
     }
   };
 
@@ -59,7 +70,7 @@ export default function VideoPlayer({ video, isStudent }) {
 
   return (
     <div className="card" style={{ padding: 0, position: 'relative', overflow: 'hidden', borderRadius: 'var(--radius-lg)' }}>
-      {/* Container used for unifying video + chatbot inside Fullscreen */}
+      {/* Container used for unifying video inside Fullscreen */}
       <div ref={containerRef} style={{ position: 'relative', backgroundColor: '#000', aspectRatio: '16/9', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         
         {/* VIDEO */}
@@ -138,10 +149,7 @@ export default function VideoPlayer({ video, isStudent }) {
           </div>
         )}
 
-        {/* AI CHATBOT INTEGRATION */}
-        {hasStarted && (
-          <VideoAIChatbot videoTitle={video.title} isStudent={isStudent} isFullscreen={isFullscreen} />
-        )}
+        {/* Chatbot is now rendered at layout level, NOT here */}
       </div>
       
       {/* Bottom Control Bar */}

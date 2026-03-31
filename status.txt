@@ -1,0 +1,8 @@
+﻿ M src/components/Layout/DashboardLayout.jsx
+ M src/components/VideoAIChatbot.jsx
+ M src/components/VideoPlayer.jsx
+ M src/index.css
+ M src/lib/geminiClient.js
+ M src/pages/Login.jsx
+?? gitlog.txt
+?? src/context/VideoContext.jsx

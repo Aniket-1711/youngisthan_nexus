@@ -1,12 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bot, X, Send, User, ChevronDown, GraduationCap } from 'lucide-react';
+import { Bot, X, Send, User, ChevronDown, GraduationCap, Sparkles, MessageCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { getChatbotResponse } from '../lib/geminiClient';
+import { useVideo } from '../context/VideoContext';
+import { createPortal } from 'react-dom';
 
-export default function VideoAIChatbot({ videoTitle, isStudent, isFullscreen }) {
+export default function VideoAIChatbot() {
+  const { currentVideo, isStudent, isWatching, isFullscreen, fullscreenContainerRef } = useVideo();
+  const videoTitle = currentVideo?.title || '';
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'assistant', text: `Hi! I'm your Nexus AI Tutor. What would you like to know about **${videoTitle || 'this video'}**?` }
+    { role: 'assistant', text: `Hi! I'm your **Nexus AI Tutor** ✨. Start watching a video and ask me anything about it!` }
   ]);
   const [inputVal, setInputVal] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -17,28 +22,33 @@ export default function VideoAIChatbot({ videoTitle, isStudent, isFullscreen }) 
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  // If the video changes, reset context softly
+  // When the active video changes, reset chat context
   useEffect(() => {
-    setMessages([
-      { role: 'assistant', text: `Hi! I'm your Nexus AI Tutor. What would you like to know about **${videoTitle || 'this video'}**?` }
-    ]);
+    if (videoTitle) {
+      setMessages([
+        { role: 'assistant', text: `Hey there! 👋 You're now watching **${videoTitle}**. Ask me anything — I'll keep it short and story-like!` }
+      ]);
+    }
   }, [videoTitle]);
 
   const handleSend = async () => {
-    if (!inputVal.trim()) return;
+    if (!inputVal.trim() || isTyping) return;
     
     const userText = inputVal.trim();
     setInputVal('');
     
-    // Add user msg
     setMessages(prev => [...prev, { role: 'user', text: userText }]);
     setIsTyping(true);
 
-    // Call API
-    const responseText = await getChatbotResponse(userText, videoTitle, !isStudent, learnToTeach);
-    
-    setMessages(prev => [...prev, { role: 'assistant', text: responseText }]);
-    setIsTyping(false);
+    try {
+      const responseText = await getChatbotResponse(userText, videoTitle, !isStudent, learnToTeach);
+      setMessages(prev => [...prev, { role: 'assistant', text: responseText }]);
+    } catch (error) {
+      console.error('Chatbot UI send error:', error);
+      setMessages(prev => [...prev, { role: 'assistant', text: 'Error: Request failed in the UI layer. Please retry.' }]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -48,193 +58,161 @@ export default function VideoAIChatbot({ videoTitle, isStudent, isFullscreen }) 
     }
   };
 
-  // UI styling based on whether the container is fullscreen
-  const positionStyles = isFullscreen
-    ? { top: '24px', right: '24px', bottom: 'auto' } // Top-right for fullscreen
-    : { bottom: '24px', right: '24px', top: 'auto' };
-
-  if (!isOpen) {
-    return (
-      <button 
-        onClick={() => setIsOpen(true)}
-        className="btn btn-primary"
-        style={{
-          position: 'absolute',
-          ...positionStyles,
-          zIndex: 9999,
-          borderRadius: '24px',
-          padding: '12px 24px',
-          boxShadow: '4px 4px 0 #000, 0 10px 15px -3px rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}
-      >
-        <Bot size={20} />
-        <span style={{ fontWeight: 700 }}>AI Assistant</span>
-      </button>
-    );
-  }
-
-  return (
-    <div 
-      style={{
-        position: 'absolute',
-        ...positionStyles,
-        width: '350px',
-        maxHeight: isFullscreen ? 'calc(100vh - 48px)' : '500px',
-        height: '500px',
-        background: 'var(--bg-card)',
-        border: '3px solid #000',
-        borderRadius: 'var(--radius-lg)',
-        boxShadow: '8px 8px 0 #000',
-        display: 'flex',
-        flexDirection: 'column',
-        zIndex: 9999,
-        overflow: 'hidden',
-        transition: 'all 0.3s ease'
-      }}
-    >
-      {/* HEADER */}
-      <div style={{ 
-        background: 'var(--accent)', 
-        color: '#fff', 
-        padding: '16px', 
-        borderBottom: '2px solid #000',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Bot size={24} />
-          <div>
-            <div style={{ fontWeight: 800, fontSize: '1.05rem', lineHeight: '1' }}>Nexus AI</div>
-            <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>Watching: {videoTitle?.substring(0,25)}...</div>
-          </div>
-        </div>
-        <button 
-          onClick={() => setIsOpen(false)}
-          style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}
+  // Build the chatbot JSX
+  const chatbotContent = (
+    <>
+      {/* FLOATING ACTION BUTTON (when closed) */}
+      {!isOpen && (
+        <button
+          id="ai-chatbot-fab"
+          onClick={() => setIsOpen(true)}
+          className="ai-chatbot-fab"
+          style={{
+            position: isFullscreen ? 'absolute' : 'fixed',
+            bottom: isFullscreen ? 'auto' : '28px',
+            top: isFullscreen ? '24px' : 'auto',
+            right: '28px',
+            zIndex: 9999,
+          }}
         >
-          <ChevronDown size={24} />
+          <div className="ai-chatbot-fab-icon">
+            <Sparkles size={22} />
+          </div>
+          <span className="ai-chatbot-fab-label">AI Tutor</span>
+          <div className="ai-chatbot-fab-pulse" />
         </button>
-      </div>
-
-      {/* MENTOR TOGGLE */}
-      {!isStudent && (
-        <div style={{ 
-          background: 'var(--table-header-bg)', 
-          borderBottom: '1px solid var(--border-color)', 
-          padding: '8px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }}>
-          <span style={{ fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <GraduationCap size={14} /> Learn to Teach Mode
-          </span>
-          <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-            <input 
-              type="checkbox" 
-              checked={learnToTeach} 
-              onChange={(e) => setLearnToTeach(e.target.checked)} 
-              style={{ marginRight: '6px' }}
-            />
-            <span style={{ fontSize: '0.75rem' }}>{learnToTeach ? 'ON' : 'OFF'}</span>
-          </label>
-        </div>
       )}
 
-      {/* CHAT BODY */}
-      <div style={{ flex: 1, padding: '16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', background: 'var(--bg-primary)' }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{ 
-            display: 'flex', 
-            justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start',
-            gap: '8px'
-          }}>
-            {m.role === 'assistant' && (
-              <div style={{ width: '28px', height: '28px', flexShrink: 0, borderRadius: '50%', background: 'var(--accent-gradient)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Bot size={16} />
+      {/* CHAT PANEL (when open) */}
+      {isOpen && (
+        <div
+          id="ai-chatbot-panel"
+          className="ai-chatbot-panel"
+          style={{
+            position: isFullscreen ? 'absolute' : 'fixed',
+            bottom: isFullscreen ? 'auto' : '28px',
+            top: isFullscreen ? '24px' : 'auto',
+            right: '28px',
+            zIndex: 9999,
+          }}
+        >
+          {/* HEADER */}
+          <div className="ai-chatbot-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="ai-chatbot-header-avatar">
+                <Bot size={20} />
               </div>
-            )}
-            
-            <div style={{
-              maxWidth: '80%',
-              background: m.role === 'user' ? '#000' : '#fff',
-              color: m.role === 'user' ? '#fff' : '#000',
-              border: '2px solid #000',
-              padding: '10px 14px',
-              borderRadius: '12px',
-              borderBottomRightRadius: m.role === 'user' ? '2px' : '12px',
-              borderTopLeftRadius: m.role === 'assistant' ? '2px' : '12px',
-              fontSize: '0.9rem',
-              lineHeight: '1.4',
-              boxShadow: m.role === 'assistant' ? '3px 3px 0 rgba(0,0,0,0.1)' : 'none'
-            }}>
-              {m.role === 'assistant' ? (
-                <div className="markdown-body" style={{ fontSize: '0.9rem' }}>
-                  <ReactMarkdown>{m.text}</ReactMarkdown>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '1rem', lineHeight: '1.1' }}>Nexus AI</div>
+                <div style={{ fontSize: '0.72rem', opacity: 0.85, marginTop: '2px' }}>
+                  {videoTitle ? `📹 ${videoTitle.length > 22 ? videoTitle.substring(0, 22) + '…' : videoTitle}` : 'Ready to help'}
                 </div>
-              ) : (
-                m.text
-              )}
+              </div>
             </div>
-            
-            {m.role === 'user' && (
-              <div style={{ width: '28px', height: '28px', flexShrink: 0, borderRadius: '50%', background: 'var(--border-color)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <User size={16} />
+            <button
+              onClick={() => setIsOpen(false)}
+              className="ai-chatbot-close"
+              title="Minimize"
+            >
+              <ChevronDown size={22} />
+            </button>
+          </div>
+
+          {/* MENTOR TOGGLE */}
+          {!isStudent && (
+            <div className="ai-chatbot-mentor-toggle">
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <GraduationCap size={14} /> Learn to Teach
+              </span>
+              <label className="ai-chatbot-switch">
+                <input
+                  type="checkbox"
+                  checked={learnToTeach}
+                  onChange={(e) => setLearnToTeach(e.target.checked)}
+                />
+                <span className="ai-chatbot-switch-slider" />
+              </label>
+            </div>
+          )}
+
+          {/* CHAT BODY */}
+          <div className="ai-chatbot-body">
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                className={`ai-chatbot-msg ${m.role}`}
+                style={{
+                  animationDelay: `${i * 0.05}s`
+                }}
+              >
+                {m.role === 'assistant' && (
+                  <div className="ai-chatbot-msg-avatar assistant">
+                    <Bot size={14} />
+                  </div>
+                )}
+                
+                <div className={`ai-chatbot-msg-bubble ${m.role}`}>
+                  {m.role === 'assistant' ? (
+                    <div className="ai-chatbot-markdown">
+                      <ReactMarkdown>{m.text}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    m.text
+                  )}
+                </div>
+
+                {m.role === 'user' && (
+                  <div className="ai-chatbot-msg-avatar user">
+                    <User size={14} />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {isTyping && (
+              <div className="ai-chatbot-msg assistant">
+                <div className="ai-chatbot-msg-avatar assistant">
+                  <Bot size={14} />
+                </div>
+                <div className="ai-chatbot-msg-bubble assistant">
+                  <div className="ai-chatbot-typing-dots">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
-        ))}
-        {isTyping && (
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <div style={{ width: '28px', height: '28px', flexShrink: 0, borderRadius: '50%', background: 'var(--accent-gradient)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Bot size={16} />
-            </div>
-            <div style={{ padding: '10px 14px', background: '#fff', border: '2px solid #000', borderRadius: '12px', color: 'var(--text-muted)' }}>
-              Thinking...
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
 
-      {/* INPUT AREA */}
-      <div style={{ padding: '12px', borderTop: '2px solid #000', background: 'var(--bg-card)' }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <input 
-            value={inputVal}
-            onChange={(e) => setInputVal(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={learnToTeach ? "Ask how to teach this..." : "Ask the AI Assistant..."}
-            style={{ 
-              flex: 1, 
-              padding: '10px 12px', 
-              border: '2px solid var(--border-color)', 
-              borderRadius: '8px',
-              outline: 'none',
-              background: 'var(--bg-primary)'
-            }}
-          />
-          <button 
-            onClick={handleSend}
-            disabled={!inputVal.trim() || isTyping}
-            style={{ 
-              background: 'var(--info)', 
-              color: '#fff', 
-              border: '2px solid #000', 
-              borderRadius: '8px', 
-              padding: '0 16px',
-              cursor: (!inputVal.trim() || isTyping) ? 'not-allowed' : 'pointer',
-              opacity: (!inputVal.trim() || isTyping) ? 0.6 : 1
-            }}
-          >
-            <Send size={18} />
-          </button>
+          {/* INPUT AREA */}
+          <div className="ai-chatbot-input-area">
+            <input
+              value={inputVal}
+              onChange={(e) => setInputVal(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={learnToTeach ? 'Ask how to teach this…' : 'Ask the AI Tutor…'}
+              className="ai-chatbot-input"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!inputVal.trim() || isTyping}
+              className="ai-chatbot-send-btn"
+            >
+              <Send size={16} />
+            </button>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
+
+  // In fullscreen mode, portal the chatbot into the fullscreen container
+  if (isFullscreen && fullscreenContainerRef) {
+    return createPortal(chatbotContent, fullscreenContainerRef);
+  }
+
+  // Normal mode: render in place (which is at layout level = fixed to viewport)
+  return chatbotContent;
 }
