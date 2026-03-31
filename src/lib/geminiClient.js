@@ -1,11 +1,11 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Initialize Gemini
-// It relies on VITE_GEMINI_API_KEY from environment variables
+// It relies on GEMINI_API_KEY from environment variables
 const getGeminiClient = () => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const apiKey = import.meta.env.GEMINI_API_KEY;
   if (!apiKey) {
-    console.warn("VITE_GEMINI_API_KEY is not defined in the environment.");
+    console.warn("GEMINI_API_KEY is not defined in the environment.");
     return null;
   }
   return new GoogleGenerativeAI(apiKey);
@@ -19,7 +19,7 @@ function getFriendlyErrorMessage(error) {
   const message = rawMessage.toLowerCase();
 
   if (message.includes('api key not valid') || message.includes('api_key_invalid')) {
-    return 'Error: Your Gemini API key is invalid. Generate a fresh key in Google AI Studio and update VITE_GEMINI_API_KEY.';
+    return 'Error: Your Gemini API key is invalid. Generate a fresh key in Google AI Studio and update GEMINI_API_KEY.';
   }
   if (message.includes('referer') || message.includes('referrer')) {
     return 'Error: Your Gemini key has HTTP referrer restrictions blocking localhost. Update key restrictions in Google Cloud Console.';
@@ -161,7 +161,7 @@ async function generateOnce(chatModel, userText, generationConfig) {
  */
 export async function getChatbotResponse(userMessage, videoTitle, isMentor, learnToTeachMode) {
   if (!genAI) {
-    return "Error: Gemini API Key is missing. Please add VITE_GEMINI_API_KEY to your .env file.";
+    return "Error: Gemini API Key is missing. Please add GEMINI_API_KEY to your .env file.";
   }
   if (!userMessage?.trim()) {
     return 'Please ask a question so I can help.';
