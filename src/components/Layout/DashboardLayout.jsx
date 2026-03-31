@@ -8,7 +8,7 @@ import VideoAIChatbot from '../VideoAIChatbot';
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isLightMode, setIsLightMode] = useState(false);
+  const [isLightMode, setIsLightMode] = useState(true);
   const { currentUser } = useAuth();
 
   useEffect(() => {

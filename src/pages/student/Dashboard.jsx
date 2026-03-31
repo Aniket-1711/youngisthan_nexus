@@ -1,7 +1,9 @@
 import { Star, Phone, MessageSquare, Calendar, Video, FileText, BookOpen } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { mentors, students, sessions, progressRecords, trainingContent } from '../../data/mockData';
 
 export default function StudentDashboard() {
+  const navigate = useNavigate();
   const student = students[0]; // Ravi Kumar
   const mentor = mentors.find(m => m.id === student.assignedMentorId);
   const mySessions = sessions.filter(s => s.studentId === student.id);
@@ -33,7 +35,7 @@ export default function StudentDashboard() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="btn btn-primary"><MessageSquare size={16} /> Chat Now</button>
+            <button className="btn btn-primary" onClick={() => navigate('/student/chat')}><MessageSquare size={16} /> Chat Now</button>
             <button className="btn btn-secondary"><Calendar size={16} /> Schedule</button>
           </div>
         </div>
